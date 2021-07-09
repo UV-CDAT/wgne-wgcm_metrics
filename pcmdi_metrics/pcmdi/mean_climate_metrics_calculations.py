@@ -39,6 +39,8 @@ def compute_metrics(Var, dm, do):
         metrics_defs["zonal_mean"] = pcmdi_metrics.pcmdi.zonal_mean.compute(
             None,
             None)
+#rms_sea_dev_am_xy
+
         return metrics_defs
     cdms.setAutoBounds('on')
     metrics_dictionary = {}
@@ -108,7 +110,7 @@ def compute_metrics(Var, dm, do):
     for stat in ["std-obs_xy", "std_xy", "std-obs_xyt",
                  "std_xyt", "std-obs_xy_devzm", "mean_xy", "mean-obs_xy", "std_xy_devzm",
                  "rms_xyt", "rms_xy", "rmsc_xy", "cor_xy", "bias_xy",
-                 "mae_xy", "rms_y", "rms_devzm"]:
+                 "mae_xy", "rms_y", "rms_devzm_xy","rms_devam_xy"]:
         metrics_dictionary[stat] = {}
 
     metrics_dictionary[
@@ -187,7 +189,7 @@ def compute_metrics(Var, dm, do):
         conv,
         sig_digits)
     metrics_dictionary[
-        'rms_devzm']['ann'] = format(
+        'rms_devzm_xy']['ann'] = format(
         rms_xy_devzm *
         conv,
         sig_digits)
@@ -205,6 +207,24 @@ def compute_metrics(Var, dm, do):
         mae_sea = pcmdi_metrics.pcmdi.meanabs_xy.compute(dm_sea, do_sea)
         bias_sea = pcmdi_metrics.pcmdi.bias_xy.compute(dm_sea, do_sea)
 
+    # CALCULATE SEASONAL MEAN DEVIATION FROM ANNUAL MEAN RMS
+
+        dm_sea_devam =  MV2.subtract(dm_sea,dm_am)
+        do_sea_devam =  MV2.subtract(do_sea,do_am)
+        rms_sea_devam = pcmdi_metrics.pcmdi.rms_xy.compute(dm_sea_devam, do_sea_devam)
+
+    # SEASONAL ZONAL MEANS ######
+        dm_sea_zm, do_sea_zm = pcmdi_metrics.pcmdi.zonal_mean.compute(dm_sea, do_sea)
+
+    # CALCULATE SEASONAL MEAN DEVIATION FROM ZONAL MEAN RMS
+
+        dm_sea_zm_grown, dummy = grower(dm_sea_zm, dm_am)
+        do_sea_zm_grown, dummy = grower(do_sea_zm, do_am)
+
+        dm_sea_devzm =  MV2.subtract(dm_sea,dm_sea_zm_grown)
+        do_sea_devzm =  MV2.subtract(do_sea,do_sea_zm_grown)
+        rms_sea_devzm = pcmdi_metrics.pcmdi.rms_xy.compute(dm_sea_devzm, do_sea_devzm)
+
         # CALCULATE SEASONAL OBS and MOD STD
         stdObs_xy_sea = pcmdi_metrics.pcmdi.std_xy.compute(do_sea)
         std_xy_sea = pcmdi_metrics.pcmdi.std_xy.compute(dm_sea)
@@ -213,6 +233,14 @@ def compute_metrics(Var, dm, do):
         meanObs_xy_sea = pcmdi_metrics.pcmdi.mean_xy.compute(do_sea)
         mean_xy_sea = pcmdi_metrics.pcmdi.mean_xy.compute(dm_sea)
 
+        metrics_dictionary['rms_devzm_xy'][sea] = format(
+            rms_sea_devzm *
+            conv,
+            sig_digits)
+        metrics_dictionary['rms_devam_xy'][sea] = format(
+            rms_sea_devam *
+            conv,
+            sig_digits)
         metrics_dictionary['bias_xy'][sea] = format(
             bias_sea *
             conv,
